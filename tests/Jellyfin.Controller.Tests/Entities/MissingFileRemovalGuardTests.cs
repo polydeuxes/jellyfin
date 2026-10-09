@@ -15,7 +15,7 @@ public class MissingFileRemovalGuardTests
         try
         {
             File.WriteAllText(Path.Combine(directory, "available.mkv"), string.Empty);
-            Assert.True(MissingFileRemovalGuard.CanRemove(Path.Combine(directory, "deleted.mkv")));
+            Assert.True(MissingFileRemovalGuard.CanRemove(Path.Combine(directory, "deleted.mkv"), directory));
         }
         finally
         {
@@ -39,14 +39,15 @@ public class MissingFileRemovalGuardTests
     }
 
     [Fact]
-    public void EmptyChildDirectoryUnderLibraryRootCannotAuthorizeRemoval()
+    public void MissingChildDirectoryUnderAvailableLibraryRootCanBeRemoved()
     {
         var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var child = Path.Combine(root, "movie");
-        Directory.CreateDirectory(child);
+        Directory.CreateDirectory(root);
         try
         {
-            Assert.False(MissingFileRemovalGuard.CanRemove(Path.Combine(child, "missing.mkv"), root));
+            File.WriteAllText(Path.Combine(root, "available.mkv"), string.Empty);
+            Assert.True(MissingFileRemovalGuard.CanRemove(Path.Combine(child, "missing.mkv"), root));
         }
         finally
         {
@@ -58,7 +59,7 @@ public class MissingFileRemovalGuardTests
     public void MissingFileUnderUnavailableDirectoryIsKept()
     {
         var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
-        Assert.False(MissingFileRemovalGuard.CanRemove(Path.Combine(directory, "unavailable.mkv")));
+        Assert.False(MissingFileRemovalGuard.CanRemove(Path.Combine(directory, "unavailable.mkv"), directory));
     }
 
     [Fact]
