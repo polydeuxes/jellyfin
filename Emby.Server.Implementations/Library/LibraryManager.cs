@@ -477,7 +477,15 @@ namespace Emby.Server.Implementations.Library
                 {
                     if (!string.IsNullOrEmpty(alt.Path) && !_fileSystem.FileExists(alt.Path))
                     {
-                        missingAlternates.Add(alt);
+                        if (MissingFileRemovalGuard.CanRemove(alt.Path))
+                        {
+                            missingAlternates.Add(alt);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Keeping missing alternate version {Path}: containing directory is unavailable", alt.Path);
+                            alternateVersions.Add(alt);
+                        }
                     }
                     else
                     {
