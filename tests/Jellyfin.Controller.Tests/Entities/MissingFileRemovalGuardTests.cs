@@ -28,4 +28,10 @@ public class MissingFileRemovalGuardTests
         var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Assert.False(MissingFileRemovalGuard.CanRemove(Path.Combine(directory, "unavailable.mkv")));
     }
+
+    [Fact]
+    public void InvalidPathIsKept()
+    {
+        Assert.False(MissingFileRemovalGuard.CanRemove("\0"));
+    }
 }
