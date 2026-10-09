@@ -19,7 +19,7 @@ public class MissingFileRemovalGuardTests
         }
         finally
         {
-            Directory.Delete(directory);
+            Directory.Delete(directory, recursive: true);
         }
     }
 
