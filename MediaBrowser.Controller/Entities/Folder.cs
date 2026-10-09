@@ -603,6 +603,12 @@ namespace MediaBrowser.Controller.Entities
                                 continue;
                             }
 
+                            if (!LibraryManager.GetLibraryOptions(item).RemoveMissingItemsAutomatically)
+                            {
+                                validChildren.Add(item);
+                                continue;
+                            }
+
                             Logger.LogDebug("Removed item: {Path}", item.Path);
 
                             actuallyRemoved.Add(item);
