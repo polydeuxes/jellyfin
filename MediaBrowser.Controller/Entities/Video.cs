@@ -650,7 +650,7 @@ namespace MediaBrowser.Controller.Entities
             // Check if the file still exists
             if (!FileSystem.FileExists(path))
             {
-                if (!MissingFileRemovalGuard.CanRemove(path))
+                if (!MissingFileRemovalGuard.CanRemove(path, GetTopParent()?.Path))
                 {
                     Logger.LogWarning("Keeping owned video {Path}: containing directory is unavailable", path);
                     return;
