@@ -596,6 +596,13 @@ namespace MediaBrowser.Controller.Entities
 
                         if (item.IsFileProtocol)
                         {
+                            if (!MissingFileRemovalGuard.CanRemove(item.Path))
+                            {
+                                Logger.LogWarning("Keeping missing item {Path}: containing directory is unavailable", item.Path);
+                                validChildren.Add(item);
+                                continue;
+                            }
+
                             Logger.LogDebug("Removed item: {Path}", item.Path);
 
                             actuallyRemoved.Add(item);

@@ -463,6 +463,12 @@ internal class MigrateLinkedChildren : IDatabaseMigrationRoutine
                 // Directory check covers BDMV/DVD items whose Path points to a folder
                 if (!File.Exists(path) && !Directory.Exists(path))
                 {
+                    if (!MissingFileRemovalGuard.CanRemove(path))
+                    {
+                        _logger.LogWarning("Keeping item {ItemId}: containing directory of {Path} is unavailable", item.Id, path);
+                        continue;
+                    }
+
                     _logger.LogDebug("Removing item {ItemId}: file {Path} no longer exists.", item.Id, path);
                     staleIds.Add(item.Id);
                 }

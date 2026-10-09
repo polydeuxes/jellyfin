@@ -650,6 +650,12 @@ namespace MediaBrowser.Controller.Entities
             // Check if the file still exists
             if (!FileSystem.FileExists(path))
             {
+                if (!MissingFileRemovalGuard.CanRemove(path))
+                {
+                    Logger.LogWarning("Keeping owned video {Path}: containing directory is unavailable", path);
+                    return;
+                }
+
                 // File was removed - clean up any orphaned database entry
                 if (LibraryManager.GetItemById(id) is Video orphanedVideo && orphanedVideo.OwnerId.Equals(Id))
                 {

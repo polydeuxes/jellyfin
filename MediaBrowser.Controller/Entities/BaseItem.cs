@@ -1700,6 +1700,12 @@ namespace MediaBrowser.Controller.Entities
                     // Items with OwnerId but no ExtraType might be alternate versions, not extras
                     if (removedExtra.ExtraType.HasValue)
                     {
+                        if (!MissingFileRemovalGuard.CanRemove(removedExtra.Path))
+                        {
+                            Logger.LogWarning("Keeping extra {Path}: containing directory is unavailable", removedExtra.Path);
+                            continue;
+                        }
+
                         LibraryManager.DeleteItem(removedExtra, new DeleteOptions()
                         {
                             DeleteFileLocation = false
