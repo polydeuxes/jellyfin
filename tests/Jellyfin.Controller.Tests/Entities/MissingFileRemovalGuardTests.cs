@@ -47,7 +47,24 @@ public class MissingFileRemovalGuardTests
         try
         {
             File.WriteAllText(Path.Combine(root, "available.mkv"), string.Empty);
-            Assert.True(MissingFileRemovalGuard.CanRemove(Path.Combine(child, "missing.mkv"), root));
+            Assert.True(MissingFileRemovalGuard.CanRemove(child, root));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void EmptyNestedMountpointUnderAvailableLibraryRootIsKept()
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var branch = Path.Combine(root, "branch");
+        Directory.CreateDirectory(branch);
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "available.mkv"), string.Empty);
+            Assert.False(MissingFileRemovalGuard.CanRemove(Path.Combine(branch, "missing.mkv"), root));
         }
         finally
         {
