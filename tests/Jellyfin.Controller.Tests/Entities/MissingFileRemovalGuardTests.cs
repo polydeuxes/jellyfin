@@ -39,14 +39,14 @@ public class MissingFileRemovalGuardTests
     }
 
     [Fact]
-    public void SoleDeletedFileInEmptyChildDirectoryCanBeRemoved()
+    public void EmptyChildDirectoryUnderLibraryRootCannotAuthorizeRemoval()
     {
         var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var child = Path.Combine(root, "movie");
         Directory.CreateDirectory(child);
         try
         {
-            Assert.True(MissingFileRemovalGuard.CanRemove(Path.Combine(child, "deleted.mkv"), root));
+            Assert.False(MissingFileRemovalGuard.CanRemove(Path.Combine(child, "missing.mkv"), root));
         }
         finally
         {
