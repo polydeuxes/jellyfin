@@ -5,12 +5,13 @@ using System.Security;
 namespace MediaBrowser.Controller.Entities;
 
 /// <summary>
-/// Checks whether a missing item's containing directory can be enumerated before catalog removal.
+/// Checks whether a missing item's containing directory has evidence of available storage before catalog removal.
 /// </summary>
 public static class MissingFileRemovalGuard
 {
     /// <summary>
-    /// Returns true only when the parent directory can be read. An empty directory is valid.
+    /// Returns true only when the parent directory can be read and contains another entry.
+    /// An empty exposed mountpoint cannot establish that its storage is available.
     /// </summary>
     /// <param name="path">The path of the missing item.</param>
     /// <returns>Whether its parent directory can be enumerated.</returns>
@@ -25,8 +26,7 @@ public static class MissingFileRemovalGuard
             }
 
             using var entries = Directory.EnumerateFileSystemEntries(parent).GetEnumerator();
-            entries.MoveNext();
-            return true;
+            return entries.MoveNext();
         }
         catch (IOException)
         {
