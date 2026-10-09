@@ -10,9 +10,8 @@ namespace MediaBrowser.Controller.Entities;
 public static class MissingFileRemovalGuard
 {
     /// <summary>
-    /// Returns true when the parent is listable and either contains another entry or is
-    /// an empty child directory beneath a known library root. An empty library root
-    /// cannot establish that its backing storage is available.
+    /// Returns true only when the containing directory has another visible entry.
+    /// An empty directory can be an exposed mountpoint at any depth.
     /// </summary>
     /// <param name="path">The path of the missing item.</param>
     /// <param name="libraryRoot">The configured library root for the item.</param>
@@ -33,14 +32,7 @@ public static class MissingFileRemovalGuard
                 return true;
             }
 
-            if (string.IsNullOrEmpty(libraryRoot))
-            {
-                return false;
-            }
-
-            var root = Path.GetFullPath(libraryRoot).TrimEnd(Path.DirectorySeparatorChar);
-            var directory = Path.GetFullPath(parent).TrimEnd(Path.DirectorySeparatorChar);
-            return directory.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.Ordinal);
+            return false;
         }
         catch (IOException)
         {
