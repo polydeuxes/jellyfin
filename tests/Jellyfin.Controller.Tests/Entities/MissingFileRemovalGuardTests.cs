@@ -30,11 +30,27 @@ public class MissingFileRemovalGuardTests
         Directory.CreateDirectory(directory);
         try
         {
-            Assert.False(MissingFileRemovalGuard.CanRemove(Path.Combine(directory, "missing.mkv")));
+            Assert.False(MissingFileRemovalGuard.CanRemove(Path.Combine(directory, "missing.mkv"), directory));
         }
         finally
         {
             Directory.Delete(directory);
+        }
+    }
+
+    [Fact]
+    public void SoleDeletedFileInEmptyChildDirectoryCanBeRemoved()
+    {
+        var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var child = Path.Combine(root, "movie");
+        Directory.CreateDirectory(child);
+        try
+        {
+            Assert.True(MissingFileRemovalGuard.CanRemove(Path.Combine(child, "deleted.mkv"), root));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
         }
     }
 

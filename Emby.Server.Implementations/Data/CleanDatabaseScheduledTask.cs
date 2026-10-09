@@ -140,7 +140,7 @@ public class CleanDatabaseScheduledTask : ILibraryPostScanTask
 
             if (playlist.IsFile && !File.Exists(playlist.Path))
             {
-                if (!MissingFileRemovalGuard.CanRemove(playlist.Path))
+                if (!MissingFileRemovalGuard.CanRemove(playlist.Path, playlist.GetTopParent()?.Path))
                 {
                     _logger.LogWarning("Keeping file-based playlist {Path}: containing directory is unavailable", playlist.Path);
                     continue;

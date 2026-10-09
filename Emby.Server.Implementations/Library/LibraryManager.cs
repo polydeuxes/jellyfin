@@ -477,7 +477,7 @@ namespace Emby.Server.Implementations.Library
                 {
                     if (!string.IsNullOrEmpty(alt.Path) && !_fileSystem.FileExists(alt.Path))
                     {
-                        if (MissingFileRemovalGuard.CanRemove(alt.Path))
+                        if (MissingFileRemovalGuard.CanRemove(alt.Path, alt.GetTopParent()?.Path))
                         {
                             missingAlternates.Add(alt);
                         }
