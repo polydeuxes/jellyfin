@@ -24,17 +24,20 @@ public class MetadataServiceDateModifiedTests
     public void BeforeSaveInternal_PrunesOnlyWhenStoredDateWasSet(bool storedDateWasSet)
     {
         var fileTime = new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc);
+        var originalDateCreated = fileTime.AddDays(-10);
+        var creationTime = fileTime.AddDays(-2);
         var item = new Movie
         {
             Path = "/media/movie.mkv",
-            DateModified = storedDateWasSet ? fileTime.AddDays(-1) : DateTime.MinValue
+            DateModified = storedDateWasSet ? fileTime.AddDays(-1) : DateTime.MinValue,
+            DateCreated = originalDateCreated
         };
         var fileSystem = new Mock<IFileSystem>();
         fileSystem.Setup(fs => fs.GetFileSystemInfo(item.Path))
-            .Returns(new FileSystemMetadata { Exists = true, LastWriteTimeUtc = fileTime });
+            .Returns(new FileSystemMetadata { Exists = true, LastWriteTimeUtc = fileTime, CreationTimeUtc = creationTime });
         var configuration = new Mock<IServerConfigurationManager>();
         configuration.Setup(c => c.GetConfiguration("metadata"))
-            .Returns(new MetadataConfiguration());
+            .Returns(new MetadataConfiguration { UseFileCreationTimeForDateAdded = true });
         var externalData = new Mock<IExternalDataManager>();
         externalData.Setup(m => m.DeleteExternalItemDataAsync(item, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -43,6 +46,7 @@ public class MetadataServiceDateModifiedTests
         var result = service.BeforeSave(item);
 
         Assert.Equal(fileTime, item.DateModified);
+        Assert.Equal(storedDateWasSet ? creationTime : originalDateCreated, item.DateCreated);
         Assert.True(result.HasFlag(ItemUpdateType.MetadataImport));
         externalData.Verify(
             m => m.DeleteExternalItemDataAsync(item, It.IsAny<CancellationToken>()),
