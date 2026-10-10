@@ -384,7 +384,7 @@ namespace MediaBrowser.Providers.Manager
                     }
 
                     item.DateModified = info.LastWriteTimeUtc;
-                    if (ServerConfigurationManager.GetMetadataConfiguration().UseFileCreationTimeForDateAdded)
+                    if (!wasUnset && ServerConfigurationManager.GetMetadataConfiguration().UseFileCreationTimeForDateAdded)
                     {
                         if (info.CreationTimeUtc > DateTime.MinValue)
                         {
