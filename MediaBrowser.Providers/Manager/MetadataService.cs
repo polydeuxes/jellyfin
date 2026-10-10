@@ -377,7 +377,11 @@ namespace MediaBrowser.Providers.Manager
                 var info = FileSystem.GetFileSystemInfo(itemPath);
                 if (info.Exists && item.HasChanged(info.LastWriteTimeUtc))
                 {
-                    Logger.LogDebug("File modification time changed from {Then} to {Now}: {Path}", item.DateModified, info.LastWriteTimeUtc, itemPath);
+                    var wasUnset = item.DateModified == DateTime.MinValue;
+                    if (!wasUnset)
+                    {
+                        Logger.LogDebug("File modification time changed from {Then} to {Now}: {Path}", item.DateModified, info.LastWriteTimeUtc, itemPath);
+                    }
 
                     item.DateModified = info.LastWriteTimeUtc;
                     if (ServerConfigurationManager.GetMetadataConfiguration().UseFileCreationTimeForDateAdded)
@@ -388,7 +392,7 @@ namespace MediaBrowser.Providers.Manager
                         }
                     }
 
-                    if (item is Video video)
+                    if (!wasUnset && item is Video video)
                     {
                         Logger.LogInformation("File changed, pruning extracted data: {Path}", item.Path);
                         ExternalDataManager.DeleteExternalItemDataAsync(video, CancellationToken.None).GetAwaiter().GetResult();
