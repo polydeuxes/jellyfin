@@ -1,10 +1,13 @@
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
 using Jellyfin.Api.Controllers;
 using Jellyfin.Api.Models.StreamingDtos;
 using MediaBrowser.Controller.MediaEncoding;
 using MediaBrowser.Controller.Streaming;
+using MediaBrowser.Model.Configuration;
 using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
@@ -14,37 +17,80 @@ namespace Jellyfin.Api.Tests.Controllers
     public class DynamicHlsControllerTests
     {
         [Fact]
-        public void AudioHls_UsesThirtySecondSegmentsByDefault()
+        public void AudioHls_UsesSixSecondSegmentsByDefault()
         {
             var state = new StreamState(null!, TranscodingJobType.Hls, null!)
             {
                 Request = new HlsAudioRequestDto()
             };
 
-            Assert.Equal(30, state.SegmentLength);
-            Assert.Equal(7, DynamicHlsController.GetSegmentLengthsInternal(TimeSpan.FromSeconds(210).Ticks, state.SegmentLength).Length);
+            Assert.Equal(6, state.SegmentLength);
+            Assert.Equal(35, DynamicHlsController.GetSegmentLengthsInternal(TimeSpan.FromSeconds(210).Ticks, state.SegmentLength).Length);
         }
 
         [Fact]
         public void AudioHls_RespectsRequestedSegmentLength()
         {
-            var state = new StreamState(null!, TranscodingJobType.Hls, null!)
+            var state = new StreamState(null!, TranscodingJobType.Hls, null!, new EncodingOptions { AudioOnlyHlsSegmentLength = 10 })
             {
-                Request = new HlsAudioRequestDto { SegmentLength = 6 }
+                Request = new HlsAudioRequestDto { SegmentLength = 4 }
             };
 
-            Assert.Equal(6, state.SegmentLength);
+            Assert.Equal(4, state.SegmentLength);
         }
 
         [Fact]
         public void VideoHls_KeepsThreeSecondDefault()
         {
-            var state = new StreamState(null!, TranscodingJobType.Hls, null!)
+            var state = new StreamState(null!, TranscodingJobType.Hls, null!, new EncodingOptions { AudioOnlyHlsSegmentLength = 10 })
             {
                 Request = new HlsVideoRequestDto()
             };
 
             Assert.Equal(3, state.SegmentLength);
+        }
+
+        [Fact]
+        public void AudioHls_UsesConfiguredSegmentLength()
+        {
+            var state = new StreamState(null!, TranscodingJobType.Hls, null!, new EncodingOptions { AudioOnlyHlsSegmentLength = 10 })
+            {
+                Request = new HlsAudioRequestDto()
+            };
+
+            Assert.Equal(10, state.SegmentLength);
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(31)]
+        public void AudioHls_RejectsOutOfRangeConfiguration(int value)
+        {
+            var options = new EncodingOptions();
+            Assert.Throws<ArgumentOutOfRangeException>(() => options.AudioOnlyHlsSegmentLength = value);
+        }
+
+        [Theory]
+        [InlineData(1)]
+        [InlineData(10)]
+        [InlineData(30)]
+        public void AudioHls_ConfigurationSurvivesXmlRoundTrip(int value)
+        {
+            var serializer = new XmlSerializer(typeof(EncodingOptions));
+            using var writer = new StringWriter();
+            serializer.Serialize(writer, new EncodingOptions { AudioOnlyHlsSegmentLength = value });
+            using var reader = new StringReader(writer.ToString());
+            var options = Assert.IsType<EncodingOptions>(serializer.Deserialize(reader));
+            Assert.Equal(value, options.AudioOnlyHlsSegmentLength);
+        }
+
+        [Fact]
+        public void AudioHls_MissingXmlOptionUsesSixSeconds()
+        {
+            var serializer = new XmlSerializer(typeof(EncodingOptions));
+            using var reader = new StringReader("<EncodingOptions />");
+            var options = Assert.IsType<EncodingOptions>(serializer.Deserialize(reader));
+            Assert.Equal(6, options.AudioOnlyHlsSegmentLength);
         }
 
         [Theory]
