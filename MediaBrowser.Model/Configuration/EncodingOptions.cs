@@ -1,6 +1,7 @@
 #pragma warning disable CA1819 // XML serialization handles collections improperly, so we need to use arrays
 
 #nullable disable
+using System;
 using System.ComponentModel;
 using MediaBrowser.Model.Entities;
 
@@ -11,6 +12,22 @@ namespace MediaBrowser.Model.Configuration;
 /// </summary>
 public class EncodingOptions
 {
+    private int _audioOnlyHlsSegmentLength = 6;
+
+    /// <summary>
+    /// Gets or sets the default audio-only HLS segment length in seconds, from 1 to 30.
+    /// </summary>
+    public int AudioOnlyHlsSegmentLength
+    {
+        get => _audioOnlyHlsSegmentLength;
+        set
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(value, 30);
+            _audioOnlyHlsSegmentLength = value;
+        }
+    }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="EncodingOptions" /> class.
     /// </summary>

@@ -1,6 +1,7 @@
 using System;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.MediaEncoding;
+using MediaBrowser.Model.Configuration;
 using MediaBrowser.Model.Dlna;
 
 namespace MediaBrowser.Controller.Streaming;
@@ -12,6 +13,7 @@ public class StreamState : EncodingJobInfo, IDisposable
 {
     private readonly IMediaSourceManager _mediaSourceManager;
     private readonly ITranscodeManager _transcodeManager;
+    private readonly EncodingOptions _encodingOptions;
     private bool _disposed;
 
     /// <summary>
@@ -20,11 +22,13 @@ public class StreamState : EncodingJobInfo, IDisposable
     /// <param name="mediaSourceManager">Instance of the <see cref="IMediaSourceManager" /> interface.</param>
     /// <param name="transcodingType">The <see cref="TranscodingJobType" />.</param>
     /// <param name="transcodeManager">The <see cref="ITranscodeManager" /> singleton.</param>
-    public StreamState(IMediaSourceManager mediaSourceManager, TranscodingJobType transcodingType, ITranscodeManager transcodeManager)
+    /// <param name="encodingOptions">The server encoding options.</param>
+    public StreamState(IMediaSourceManager mediaSourceManager, TranscodingJobType transcodingType, ITranscodeManager transcodeManager, EncodingOptions? encodingOptions = null)
         : base(transcodingType)
     {
         _mediaSourceManager = mediaSourceManager;
         _transcodeManager = transcodeManager;
+        _encodingOptions = encodingOptions ?? new EncodingOptions();
     }
 
     /// <summary>
@@ -80,9 +84,9 @@ public class StreamState : EncodingJobInfo, IDisposable
                 return Request.SegmentLength.Value;
             }
 
-            if (!IsOutputVideo)
+            if (!IsOutputVideo && TranscodingType == TranscodingJobType.Hls)
             {
-                return 30;
+                return _encodingOptions.AudioOnlyHlsSegmentLength;
             }
 
             if (EncodingHelper.IsCopyCodec(OutputVideoCodec))

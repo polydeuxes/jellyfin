@@ -74,7 +74,8 @@ public static class StreamingHelpers
             streamingRequest.AudioCodec = encodingHelper.InferAudioCodec(url);
         }
 
-        var state = new StreamState(mediaSourceManager, transcodingJobType, transcodeManager)
+        var encodingOptions = serverConfigurationManager.GetEncodingOptions();
+        var state = new StreamState(mediaSourceManager, transcodingJobType, transcodeManager, encodingOptions)
         {
             Request = streamingRequest,
             RequestedUrl = url,
@@ -159,8 +160,6 @@ public static class StreamingHelpers
                 streamingRequest.VideoBitRate = Math.Min(streamingRequest.VideoBitRate.Value, mediaSource.FallbackMaxStreamingBitrate.Value);
             }
         }
-
-        var encodingOptions = serverConfigurationManager.GetEncodingOptions();
 
         encodingHelper.AttachMediaSourceInfo(state, encodingOptions, mediaSource, url);
 
