@@ -2,7 +2,9 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Api.Controllers;
+using Jellyfin.Api.Models.StreamingDtos;
 using MediaBrowser.Controller.MediaEncoding;
+using MediaBrowser.Controller.Streaming;
 using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
@@ -11,6 +13,40 @@ namespace Jellyfin.Api.Tests.Controllers
 {
     public class DynamicHlsControllerTests
     {
+        [Fact]
+        public void AudioHls_UsesThirtySecondSegmentsByDefault()
+        {
+            var state = new StreamState(null!, TranscodingJobType.Hls, null!)
+            {
+                Request = new HlsAudioRequestDto()
+            };
+
+            Assert.Equal(30, state.SegmentLength);
+            Assert.Equal(7, DynamicHlsController.GetSegmentLengthsInternal(TimeSpan.FromSeconds(210).Ticks, state.SegmentLength).Length);
+        }
+
+        [Fact]
+        public void AudioHls_RespectsRequestedSegmentLength()
+        {
+            var state = new StreamState(null!, TranscodingJobType.Hls, null!)
+            {
+                Request = new HlsAudioRequestDto { SegmentLength = 6 }
+            };
+
+            Assert.Equal(6, state.SegmentLength);
+        }
+
+        [Fact]
+        public void VideoHls_KeepsThreeSecondDefault()
+        {
+            var state = new StreamState(null!, TranscodingJobType.Hls, null!)
+            {
+                Request = new HlsVideoRequestDto()
+            };
+
+            Assert.Equal(3, state.SegmentLength);
+        }
+
         [Theory]
         [InlineData(8, 1, "smpte2084", false, "hvc1")]
         [InlineData(8, 1, "smpte2084", true, "hvc1")]
