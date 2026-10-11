@@ -80,6 +80,11 @@ public class StreamState : EncodingJobInfo, IDisposable
                 return Request.SegmentLength.Value;
             }
 
+            if (!IsOutputVideo)
+            {
+                return 30;
+            }
+
             if (EncodingHelper.IsCopyCodec(OutputVideoCodec))
             {
                 var userAgent = UserAgent ?? string.Empty;
