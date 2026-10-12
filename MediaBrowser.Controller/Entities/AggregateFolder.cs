@@ -82,6 +82,12 @@ namespace MediaBrowser.Controller.Entities
             return CreateResolveArgs(directoryService, true).FileSystemChildren;
         }
 
+        /// <inheritdoc />
+        protected override FileSystemMetadata[] GetScanFileSystemChildren(IDirectoryService directoryService)
+        {
+            return GetFileSystemChildren(directoryService);
+        }
+
         protected override IReadOnlyList<BaseItem> LoadChildren()
         {
             lock (_childIdsLock)

@@ -203,6 +203,12 @@ namespace MediaBrowser.Controller.Entities
             return CreateResolveArgs(directoryService, true).FileSystemChildren;
         }
 
+        /// <inheritdoc />
+        protected override FileSystemMetadata[] GetScanFileSystemChildren(IDirectoryService directoryService)
+        {
+            return GetFileSystemChildren(directoryService);
+        }
+
         public override bool RequiresRefresh()
         {
             var changed = base.RequiresRefresh() || _requiresRefresh;

@@ -935,7 +935,17 @@ namespace MediaBrowser.Controller.Entities
             var collectionType = LibraryManager.GetContentType(this);
             var libraryOptions = LibraryManager.GetLibraryOptions(this);
 
-            return LibraryManager.ResolvePaths(GetFileSystemChildren(directoryService), directoryService, this, libraryOptions, collectionType);
+            return LibraryManager.ResolvePaths(GetScanFileSystemChildren(directoryService), directoryService, this, libraryOptions, collectionType);
+        }
+
+        /// <summary>
+        /// Gets the file system children for a regular folder scan.
+        /// </summary>
+        /// <param name="directoryService">The directory service.</param>
+        /// <returns>The file system children.</returns>
+        protected virtual FileSystemMetadata[] GetScanFileSystemChildren(IDirectoryService directoryService)
+        {
+            return directoryService.GetScanFileSystemEntries(ContainingFolderPath);
         }
 
         /// <summary>

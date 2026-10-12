@@ -61,6 +61,18 @@ namespace MediaBrowser.Controller.Providers
                 (FileSystem: _fileSystem, Service: this));
         }
 
+        public FileSystemMetadata[] GetScanFileSystemEntries(string path)
+        {
+            try
+            {
+                return _fileSystem.GetScanFileSystemEntries(path).ToArray();
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return [];
+            }
+        }
+
         public List<FileSystemMetadata> GetDirectories(string path)
         {
             var list = new List<FileSystemMetadata>();

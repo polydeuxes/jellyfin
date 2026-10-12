@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.IO.Enumeration;
 using System.Linq;
 using System.Security;
 using Jellyfin.Extensions;
@@ -639,6 +640,40 @@ namespace Emby.Server.Implementations.IO
             var enumerationOptions = GetEnumerationOptions(recursive);
 
             return ToMetadata(directoryInfo.EnumerateFileSystemInfos("*", enumerationOptions));
+        }
+
+        /// <inheritdoc />
+        public virtual IEnumerable<FileSystemMetadata> GetScanFileSystemEntries(string path)
+        {
+            // Materialize the whole listing before Folder compares it with stored items.
+            // A partial or denied listing must throw, so Folder keeps its existing children.
+            var options = GetEnumerationOptions(false);
+            options.IgnoreInaccessible = false;
+            var entries = new FileSystemEnumerable<FileSystemMetadata>(
+                path,
+                (ref FileSystemEntry entry) =>
+                {
+                    if ((entry.Attributes & FileAttributes.ReparsePoint) != 0)
+                    {
+                        return GetFileSystemMetadata(entry.ToFileSystemInfo());
+                    }
+
+                    var isDirectory = entry.IsDirectory;
+                    var fullPath = entry.ToFullPath();
+                    return new FileSystemMetadata
+                    {
+                        Exists = true,
+                        FullName = fullPath,
+                        Name = entry.FileName.ToString(),
+                        Extension = Path.GetExtension(entry.FileName).ToString(),
+                        IsDirectory = isDirectory,
+                        Length = isDirectory ? 0 : entry.Length,
+                        CreationTimeUtc = entry.CreationTimeUtc.UtcDateTime,
+                        LastWriteTimeUtc = entry.LastWriteTimeUtc.UtcDateTime
+                    };
+                },
+                options);
+            return entries.ToArray();
         }
 
         private IEnumerable<FileSystemMetadata> ToMetadata(IEnumerable<FileSystemInfo> infos)
