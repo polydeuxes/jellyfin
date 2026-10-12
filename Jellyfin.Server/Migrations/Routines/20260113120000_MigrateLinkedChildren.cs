@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading.Tasks;
 using Jellyfin.Database.Implementations;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Extensions;
@@ -434,8 +435,25 @@ internal class MigrateLinkedChildren : IDatabaseMigrationRoutine
         var checkedCount = 0;
         _logger.LogInformation("Checking {Total} items for missing files.", itemsWithPaths.Count);
 
-        foreach (var item in itemsWithPaths)
+        // Keep database and deletion work on this thread. Only the independent filesystem
+        // probes run concurrently, and retain their original order for decisions below.
+        var fileExists = new bool[itemsWithPaths.Count];
+        var parallelism = int.TryParse(Environment.GetEnvironmentVariable("JELLYFIN_MISSING_FILE_CHECK_PARALLELISM"), out var configuredParallelism)
+            ? Math.Clamp(configuredParallelism, 1, 16)
+            : 4;
+        Parallel.For(0, itemsWithPaths.Count, new ParallelOptions { MaxDegreeOfParallelism = parallelism }, i =>
         {
+            var path = _appHost.ExpandVirtualPath(itemsWithPaths[i].Path!);
+            if (!path.StartsWith(internalMetadataPath, StringComparison.OrdinalIgnoreCase)
+                && accessiblePaths.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
+            {
+                fileExists[i] = File.Exists(path) || Directory.Exists(path);
+            }
+        });
+
+        for (var itemIndex = 0; itemIndex < itemsWithPaths.Count; itemIndex++)
+        {
+            var item = itemsWithPaths[itemIndex];
             // A miss on offline storage can block for the mount timeout, so report while scanning.
             if (checkedCount > 0 && checkedCount % FileCheckProgressLogStep == 0)
             {
@@ -461,7 +479,7 @@ internal class MigrateLinkedChildren : IDatabaseMigrationRoutine
             {
                 // Item is under an accessible library location — check if it still exists
                 // Directory check covers BDMV/DVD items whose Path points to a folder
-                if (!File.Exists(path) && !Directory.Exists(path))
+                if (!fileExists[itemIndex])
                 {
                     if (!MissingFileRemovalGuard.CanRemove(path, accessiblePaths.FirstOrDefault(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase))))
                     {
