@@ -195,6 +195,11 @@ namespace MediaBrowser.Model.IO
         /// <returns>IEnumerable&lt;FileSystemMetadata&gt;.</returns>
         IEnumerable<FileSystemMetadata> GetFileSystemEntries(string path, bool recursive = false);
 
+        /// <summary>Gets metadata from one directory enumeration for a library scan.</summary>
+        /// <param name="path">The directory path.</param>
+        /// <returns>The listed entries.</returns>
+        IEnumerable<FileSystemMetadata> GetScanFileSystemEntries(string path);
+
         /// <summary>
         /// Gets the directory paths.
         /// </summary>
