@@ -67,10 +67,12 @@ public class ItemUpdateController : BaseJellyfinApiController
     /// <param name="itemId">The item id.</param>
     /// <param name="request">The new item properties.</param>
     /// <response code="204">Item updated.</response>
+    /// <response code="400">A supplied provider id is invalid.</response>
     /// <response code="404">Item not found.</response>
     /// <returns>An <see cref="NoContentResult"/> on success, or a <see cref="NotFoundResult"/> if the item could not be found.</returns>
     [HttpPost("Items/{itemId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> UpdateItem([FromRoute, Required] Guid itemId, [FromBody, Required] BaseItemDto request)
     {
@@ -78,6 +80,35 @@ public class ItemUpdateController : BaseJellyfinApiController
         if (item is null)
         {
             return NotFound();
+        }
+
+        if (request.ProviderIds is not null)
+        {
+            var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+            foreach (var (name, value) in request.ProviderIds)
+            {
+                // Blank values intentionally clear ids through the existing replacement setter.
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(name)
+                    || name.Contains('=', StringComparison.Ordinal)
+                    || !ProviderIdsExtensions.IsValidProviderId(name.Trim(), value.Trim()))
+                {
+                    errors[$"ProviderIds[{name}]"] = new[] { "The provider id name or value is invalid." };
+                }
+            }
+
+            if (errors.Count > 0)
+            {
+                return BadRequest(new ValidationProblemDetails(errors)
+                {
+                    Status = StatusCodes.Status400BadRequest,
+                    Title = "One or more provider ids are invalid."
+                });
+            }
         }
 
         var newLockData = request.LockData ?? false;
