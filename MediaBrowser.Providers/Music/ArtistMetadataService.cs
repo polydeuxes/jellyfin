@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using MediaBrowser.Controller.Configuration;
+using MediaBrowser.Controller.Drawing;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.IO;
@@ -27,6 +28,7 @@ public class ArtistMetadataService : MetadataService<MusicArtist, ArtistInfo>
     /// <param name="libraryManager">Instance of the <see cref="ILibraryManager"/> interface.</param>
     /// <param name="externalDataManager">Instance of the <see cref="IExternalDataManager"/> interface.</param>
     /// <param name="itemRepository">Instance of the <see cref="IItemRepository"/> interface.</param>
+    /// <param name="imageProcessor">The image processor used to validate replacement artwork.</param>
     public ArtistMetadataService(
         IServerConfigurationManager serverConfigurationManager,
         ILogger<ArtistMetadataService> logger,
@@ -34,8 +36,9 @@ public class ArtistMetadataService : MetadataService<MusicArtist, ArtistInfo>
         IFileSystem fileSystem,
         ILibraryManager libraryManager,
         IExternalDataManager externalDataManager,
-        IItemRepository itemRepository)
-        : base(serverConfigurationManager, logger, providerManager, fileSystem, libraryManager, externalDataManager, itemRepository)
+        IItemRepository itemRepository,
+        IImageProcessor imageProcessor)
+        : base(serverConfigurationManager, logger, providerManager, fileSystem, libraryManager, externalDataManager, itemRepository, imageProcessor)
     {
     }
 

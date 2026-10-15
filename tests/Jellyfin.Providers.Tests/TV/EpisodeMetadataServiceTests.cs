@@ -166,7 +166,8 @@ public sealed class EpisodeMetadataServiceTests : IDisposable
                 Mock.Of<IFileSystem>(),
                 Mock.Of<ILibraryManager>(),
                 Mock.Of<IExternalDataManager>(),
-                Mock.Of<IItemRepository>())
+                Mock.Of<IItemRepository>(),
+                Mock.Of<MediaBrowser.Controller.Drawing.IImageProcessor>())
         {
         }
 
