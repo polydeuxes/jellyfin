@@ -477,7 +477,8 @@ namespace Jellyfin.Providers.Tests.Manager
                     Mock.Of<IFileSystem>(),
                     Mock.Of<ILibraryManager>(),
                     Mock.Of<IExternalDataManager>(),
-                    Mock.Of<IItemRepository>())
+                    Mock.Of<IItemRepository>(),
+                    Mock.Of<MediaBrowser.Controller.Drawing.IImageProcessor>())
             {
             }
 
@@ -499,7 +500,8 @@ namespace Jellyfin.Providers.Tests.Manager
                     Mock.Of<IFileSystem>(),
                     libraryManager,
                     Mock.Of<IExternalDataManager>(),
-                    itemRepository)
+                    itemRepository,
+                    Mock.Of<MediaBrowser.Controller.Drawing.IImageProcessor>())
             {
             }
         }

@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using MediaBrowser.Controller.Configuration;
+using MediaBrowser.Controller.Drawing;
 using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.IO;
 using MediaBrowser.Controller.Library;
@@ -28,6 +29,7 @@ public class AudioMetadataService : MetadataService<Audio, SongInfo>
     /// <param name="libraryManager">Instance of the <see cref="ILibraryManager"/> interface.</param>
     /// <param name="externalDataManager">Instance of the <see cref="IExternalDataManager"/> interface.</param>
     /// <param name="itemRepository">Instance of the <see cref="IItemRepository"/> interface.</param>
+    /// <param name="imageProcessor">The image processor used to validate replacement artwork.</param>
     public AudioMetadataService(
         IServerConfigurationManager serverConfigurationManager,
         ILogger<AudioMetadataService> logger,
@@ -35,8 +37,9 @@ public class AudioMetadataService : MetadataService<Audio, SongInfo>
         IFileSystem fileSystem,
         ILibraryManager libraryManager,
         IExternalDataManager externalDataManager,
-        IItemRepository itemRepository)
-        : base(serverConfigurationManager, logger, providerManager, fileSystem, libraryManager, externalDataManager, itemRepository)
+        IItemRepository itemRepository,
+        IImageProcessor imageProcessor)
+        : base(serverConfigurationManager, logger, providerManager, fileSystem, libraryManager, externalDataManager, itemRepository, imageProcessor)
     {
     }
 
