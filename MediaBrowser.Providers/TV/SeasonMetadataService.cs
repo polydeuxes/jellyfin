@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MediaBrowser.Controller.Configuration;
+using MediaBrowser.Controller.Drawing;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.IO;
@@ -30,6 +31,7 @@ public class SeasonMetadataService : MetadataService<Season, SeasonInfo>
     /// <param name="libraryManager">Instance of the <see cref="ILibraryManager"/> interface.</param>
     /// <param name="externalDataManager">Instance of the <see cref="IExternalDataManager"/> interface.</param>
     /// <param name="itemRepository">Instance of the <see cref="IItemRepository"/> interface.</param>
+    /// <param name="imageProcessor">The image processor used to validate replacement artwork.</param>
     public SeasonMetadataService(
         IServerConfigurationManager serverConfigurationManager,
         ILogger<SeasonMetadataService> logger,
@@ -37,8 +39,9 @@ public class SeasonMetadataService : MetadataService<Season, SeasonInfo>
         IFileSystem fileSystem,
         ILibraryManager libraryManager,
         IExternalDataManager externalDataManager,
-        IItemRepository itemRepository)
-        : base(serverConfigurationManager, logger, providerManager, fileSystem, libraryManager, externalDataManager, itemRepository)
+        IItemRepository itemRepository,
+        IImageProcessor imageProcessor)
+        : base(serverConfigurationManager, logger, providerManager, fileSystem, libraryManager, externalDataManager, itemRepository, imageProcessor)
     {
     }
 

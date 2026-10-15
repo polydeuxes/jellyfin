@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Extensions;
 using MediaBrowser.Controller.Configuration;
+using MediaBrowser.Controller.Drawing;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.IO;
@@ -35,7 +36,8 @@ namespace MediaBrowser.Providers.Manager
             IFileSystem fileSystem,
             ILibraryManager libraryManager,
             IExternalDataManager externalDataManager,
-            IItemRepository itemRepository)
+            IItemRepository itemRepository,
+            IImageProcessor imageProcessor)
         {
             ServerConfigurationManager = serverConfigurationManager;
             Logger = logger;
@@ -44,7 +46,7 @@ namespace MediaBrowser.Providers.Manager
             LibraryManager = libraryManager;
             ExternalDataManager = externalDataManager;
             ItemRepository = itemRepository;
-            ImageProvider = new ItemImageProvider(Logger, ProviderManager, FileSystem);
+            ImageProvider = new ItemImageProvider(Logger, ProviderManager, FileSystem, imageProcessor);
         }
 
         protected ItemImageProvider ImageProvider { get; }

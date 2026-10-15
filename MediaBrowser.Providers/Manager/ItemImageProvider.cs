@@ -9,6 +9,7 @@ using System.Net.Http;
 using System.Net.Mime;
 using System.Threading;
 using System.Threading.Tasks;
+using MediaBrowser.Controller.Drawing;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.Entities.TV;
@@ -34,6 +35,7 @@ namespace MediaBrowser.Providers.Manager
         private readonly ILogger _logger;
         private readonly IProviderManager _providerManager;
         private readonly IFileSystem _fileSystem;
+        private readonly IImageProcessor _imageProcessor;
         private static readonly ImageType[] AllImageTypes = Enum.GetValues<ImageType>();
 
         /// <summary>
@@ -58,11 +60,13 @@ namespace MediaBrowser.Providers.Manager
         /// <param name="logger">The logger.</param>
         /// <param name="providerManager">The provider manager for interacting with provider image references.</param>
         /// <param name="fileSystem">The filesystem.</param>
-        public ItemImageProvider(ILogger logger, IProviderManager providerManager, IFileSystem fileSystem)
+        /// <param name="imageProcessor">Optional raster validation seam; required for lazy replacement.</param>
+        public ItemImageProvider(ILogger logger, IProviderManager providerManager, IFileSystem fileSystem, IImageProcessor imageProcessor = null)
         {
             _logger = logger;
             _providerManager = providerManager;
             _fileSystem = fileSystem;
+            _imageProcessor = imageProcessor;
         }
 
         /// <summary>
@@ -284,7 +288,7 @@ namespace MediaBrowser.Providers.Manager
         {
             try
             {
-                if (!item.SupportsRemoteImageDownloading)
+                if (!item.SupportsRemoteImageDownloading || refreshOptions.ImageRefreshMode <= MetadataRefreshMode.ValidationOnly)
                 {
                     return;
                 }
@@ -317,10 +321,11 @@ namespace MediaBrowser.Providers.Manager
                         continue;
                     }
 
-                    if (!item.HasImage(imageType) || (refreshOptions.IsReplacingImage(imageType) && !downloadedImages.Contains(imageType)))
+                    var lazyReplacement = NeedsPrimaryUpgrade(item, imageType, savedOptions) && !refreshOptions.IsReplacingImage(imageType);
+                    if ((!item.HasImage(imageType) || refreshOptions.IsReplacingImage(imageType) || lazyReplacement) && !downloadedImages.Contains(imageType))
                     {
                         minWidth = savedOptions.GetMinWidth(imageType);
-                        var downloaded = await DownloadImage(item, provider, result, list, minWidth, imageType, cancellationToken).ConfigureAwait(false);
+                        var downloaded = await DownloadImage(item, provider, result, list, minWidth, imageType, cancellationToken, lazyReplacement).ConfigureAwait(false);
 
                         if (downloaded)
                         {
@@ -359,7 +364,7 @@ namespace MediaBrowser.Providers.Manager
             for (var i = 0; i < _singularImages.Length; i++)
             {
                 var type = _singularImages[i];
-                if (images.Contains(type) && !item.HasImage(type) && savedOptions.GetLimit(type) > 0)
+                if (images.Contains(type) && (!item.HasImage(type) || NeedsPrimaryUpgrade(item, type, savedOptions)) && savedOptions.GetLimit(type) > 0)
                 {
                     return false;
                 }
@@ -371,6 +376,14 @@ namespace MediaBrowser.Providers.Manager
             }
 
             return true;
+        }
+
+        private bool NeedsPrimaryUpgrade(BaseItem item, ImageType type, TypeOptions options)
+        {
+            var current = item.GetImageInfo(type, 0);
+            return _imageProcessor is not null && !item.IsLocked && type == ImageType.Primary
+                && options.IsEnabled(type) && options.GetMinWidth(type) > 0
+                && current is not null && current.Width > 0 && current.Width < options.GetMinWidth(type);
         }
 
         private void PruneImages(BaseItem item, IReadOnlyList<ItemImageInfo> images)
@@ -556,13 +569,21 @@ namespace MediaBrowser.Providers.Manager
             IEnumerable<RemoteImageInfo> images,
             int minWidth,
             ImageType type,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool validateReplacement = false)
         {
+            // SetImagePath can mutate the same object and reuse its path. Capture values
+            // before retrieval rather than retaining only an ItemImageInfo reference.
+            var original = validateReplacement ? item.GetImageInfo(type, 0) : null;
+            var originalPath = original?.Path;
+            var originalModified = original?.DateModified;
+            var originalWidth = original?.Width;
+            var originalHeight = original?.Height;
             var eligibleImages = images
                 .Where(i => i.Type == type && (i.Width is null || i.Width >= minWidth))
                 .ToList();
 
-            if (EnableImageStub(item) && eligibleImages.Count > 0)
+            if (!validateReplacement && EnableImageStub(item) && eligibleImages.Count > 0)
             {
                 SaveImageStub(item, type, eligibleImages.Select(i => i.Url));
                 result.UpdateType |= ItemUpdateType.ImageUpdate;
@@ -593,6 +614,45 @@ namespace MediaBrowser.Providers.Manager
                     var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
                     await using (stream.ConfigureAwait(false))
                     {
+                        if (validateReplacement)
+                        {
+                            var temporaryPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+                            try
+                            {
+                                await using (var staged = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
+                                {
+                                    await stream.CopyToAsync(staged, cancellationToken).ConfigureAwait(false);
+                                }
+
+                                var dimensions = _imageProcessor.GetImageDimensions(temporaryPath);
+                                if (dimensions.Width < minWidth || dimensions.Height <= 0)
+                                {
+                                    continue;
+                                }
+
+                                await using var validated = File.OpenRead(temporaryPath);
+                                var current = item.GetImageInfo(type, 0);
+                                if (item.IsLocked || current is null
+                                    || current.Path != originalPath || current.DateModified != originalModified
+                                    || current.Width != originalWidth || current.Height != originalHeight
+                                    || current.Width <= 0 || current.Width >= minWidth)
+                                {
+                                    return false;
+                                }
+
+                                // This revalidates eligibility only; SaveImage's later async
+                                // copying/publication is not serialized with manual saves.
+                                await _providerManager.SaveImage(item, validated, response.Content.Headers.ContentType?.MediaType ?? MediaTypeNames.Image.Jpeg, type, null, cancellationToken).ConfigureAwait(false);
+                            }
+                            finally
+                            {
+                                File.Delete(temporaryPath);
+                            }
+
+                            result.UpdateType |= ItemUpdateType.ImageUpdate;
+                            return true;
+                        }
+
                         var mimetype = response.Content.Headers.ContentType?.MediaType;
                         if (mimetype is null || mimetype.Equals(MediaTypeNames.Application.Octet, StringComparison.OrdinalIgnoreCase))
                         {
