@@ -279,6 +279,8 @@ namespace MediaBrowser.Providers.Manager
             _logger.LogDebug("Saving image to {0}", path);
 
             var parentFolder = Path.GetDirectoryName(path);
+            var stagingPath = Path.Combine(parentFolder, $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
+            var stagingCreated = false;
 
             try
             {
@@ -287,21 +289,24 @@ namespace MediaBrowser.Providers.Manager
 
                 Directory.CreateDirectory(Path.GetDirectoryName(path));
 
-                _fileSystem.SetAttributes(path, false, false);
-
                 var fileStreamOptions = AsyncFile.WriteOptions;
-                fileStreamOptions.Mode = FileMode.Create;
+                fileStreamOptions.Mode = FileMode.CreateNew;
                 fileStreamOptions.Options = FileOptions.WriteThrough;
                 if (source.CanSeek)
                 {
                     fileStreamOptions.PreallocationSize = source.Length;
                 }
 
-                var fs = new FileStream(path, fileStreamOptions);
+                var fs = new FileStream(stagingPath, fileStreamOptions);
+                stagingCreated = true;
                 await using (fs.ConfigureAwait(false))
                 {
                     await source.CopyToAsync(fs, cancellationToken).ConfigureAwait(false);
                 }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                _fileSystem.SetAttributes(path, false, false);
+                File.Move(stagingPath, path, true);
 
                 if (_config.Configuration.SaveMetadataHidden)
                 {
@@ -310,6 +315,22 @@ namespace MediaBrowser.Providers.Manager
             }
             finally
             {
+                if (stagingCreated)
+                {
+                    try
+                    {
+                        File.Delete(stagingPath);
+                    }
+                    catch (IOException ex)
+                    {
+                        _logger.LogError(ex, "Error deleting staged image {Path}", stagingPath);
+                    }
+                    catch (UnauthorizedAccessException ex)
+                    {
+                        _logger.LogError(ex, "Error deleting staged image {Path}", stagingPath);
+                    }
+                }
+
                 _libraryMonitor.ReportFileSystemChangeComplete(path, false);
                 _libraryMonitor.ReportFileSystemChangeComplete(parentFolder, false);
             }

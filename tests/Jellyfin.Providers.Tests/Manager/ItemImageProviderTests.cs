@@ -10,7 +10,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.IO;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Configuration;
@@ -32,6 +34,49 @@ namespace Jellyfin.Providers.Tests.Manager
 
         [GeneratedRegex("[0-9]+")]
         private static partial Regex NumbersRegex();
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task ImageSaver_SamePath_PublishesOnlyCompletedStream(bool fail)
+        {
+            var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            var path = Path.Combine(directory, "poster.jpg");
+            var original = Encoding.UTF8.GetBytes("existing manual artwork");
+            var replacement = new byte[16384];
+            Array.Fill(replacement, (byte)42);
+            await File.WriteAllBytesAsync(path, original, TestContext.Current.CancellationToken);
+            var originalHash = System.Security.Cryptography.SHA256.HashData(original);
+            var config = new Mock<IServerConfigurationManager>();
+            config.SetupGet(c => c.Configuration).Returns(new ServerConfiguration());
+            var saver = new ImageSaver(config.Object, Mock.Of<ILibraryMonitor>(), Mock.Of<IFileSystem>(), NullLogger.Instance);
+            using var source = new InterruptedImageStream(replacement, fail, () =>
+            {
+                Assert.Equal(originalHash, System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(path)));
+                Assert.Equal(2, Directory.GetFiles(directory).Length);
+            });
+            try
+            {
+                if (fail)
+                {
+                    await Assert.ThrowsAsync<IOException>(() => saver.SaveImage(source, path));
+                    Assert.Equal(originalHash, System.Security.Cryptography.SHA256.HashData(await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken)));
+                }
+                else
+                {
+                    await saver.SaveImage(source, path);
+                    Assert.Equal(replacement, await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken));
+                }
+
+                Assert.Equal(fail ? 2 : 3, source.ReadCount);
+                Assert.Equal(path, Assert.Single(Directory.GetFiles(directory)));
+            }
+            finally
+            {
+                Directory.Delete(directory, true);
+            }
+        }
 
         [Fact]
         public void ValidateImages_PhotoEmptyProviders_NoChange()
@@ -725,6 +770,56 @@ namespace Jellyfin.Providers.Tests.Manager
                     }
                 }
             };
+        }
+
+        private sealed class InterruptedImageStream(byte[] bytes, bool fail, Action afterPartialWrite) : Stream
+        {
+            public int ReadCount { get; private set; }
+
+            public override bool CanRead => true;
+
+            public override bool CanSeek => false;
+
+            public override bool CanWrite => false;
+
+            public override long Length => throw new NotSupportedException();
+
+            public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+            public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                ReadCount++;
+                if (ReadCount == 1)
+                {
+                    bytes.AsMemory(0, bytes.Length / 2).CopyTo(buffer);
+                    return ValueTask.FromResult(bytes.Length / 2);
+                }
+
+                if (ReadCount == 2)
+                {
+                    afterPartialWrite();
+                    if (fail)
+                    {
+                        throw new IOException("Injected failure after the first chunk was written");
+                    }
+
+                    bytes.AsMemory(bytes.Length / 2).CopyTo(buffer);
+                    return ValueTask.FromResult(bytes.Length / 2);
+                }
+
+                return ValueTask.FromResult(0);
+            }
+
+            public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+            public override void Flush() => throw new NotSupportedException();
+
+            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+            public override void SetLength(long value) => throw new NotSupportedException();
+
+            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
         }
     }
 }
