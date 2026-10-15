@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Extensions;
 using MediaBrowser.Controller.Configuration;
+using MediaBrowser.Controller.Drawing;
 using MediaBrowser.Controller.Dto;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.TV;
@@ -39,6 +40,7 @@ public class SeriesMetadataService : MetadataService<Series, SeriesInfo>
     /// <param name="localizationManager">Instance of the <see cref="ILocalizationManager"/> interface.</param>
     /// <param name="externalDataManager">Instance of the <see cref="IExternalDataManager"/> interface.</param>
     /// <param name="itemRepository">Instance of the <see cref="IItemRepository"/> interface.</param>
+    /// <param name="imageProcessor">The image processor used to validate replacement artwork.</param>
     public SeriesMetadataService(
         IServerConfigurationManager serverConfigurationManager,
         ILogger<SeriesMetadataService> logger,
@@ -47,8 +49,9 @@ public class SeriesMetadataService : MetadataService<Series, SeriesInfo>
         ILibraryManager libraryManager,
         ILocalizationManager localizationManager,
         IExternalDataManager externalDataManager,
-        IItemRepository itemRepository)
-        : base(serverConfigurationManager, logger, providerManager, fileSystem, libraryManager, externalDataManager, itemRepository)
+        IItemRepository itemRepository,
+        IImageProcessor imageProcessor)
+        : base(serverConfigurationManager, logger, providerManager, fileSystem, libraryManager, externalDataManager, itemRepository, imageProcessor)
     {
         _localizationManager = localizationManager;
     }
