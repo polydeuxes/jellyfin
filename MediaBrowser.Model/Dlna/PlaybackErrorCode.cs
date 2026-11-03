@@ -18,6 +18,11 @@ namespace MediaBrowser.Model.Dlna
         /// <summary>
         /// The rate limit has been exceeded.
         /// </summary>
-        RateLimitExceeded = 2
+        RateLimitExceeded = 2,
+
+        /// <summary>
+        /// The selected media source is no longer available.
+        /// </summary>
+        SourceNotFound = 3
     }
 }
