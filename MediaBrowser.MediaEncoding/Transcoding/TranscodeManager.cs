@@ -378,6 +378,12 @@ public sealed class TranscodeManager : ITranscodeManager, IDisposable
         string? workingDirectory = null)
     {
         var directory = Path.GetDirectoryName(outputPath) ?? throw new ArgumentException($"Provided path ({outputPath}) is not valid.", nameof(outputPath));
+        // Recheck after opening the source: it may have disappeared since PlaybackInfo.
+        if (state.MediaSource.Protocol == MediaProtocol.File && !Path.Exists(state.MediaPath))
+        {
+            throw new FileNotFoundException("The media source is no longer available.");
+        }
+
         Directory.CreateDirectory(directory);
 
         await AcquireResources(state, cancellationTokenSource).ConfigureAwait(false);

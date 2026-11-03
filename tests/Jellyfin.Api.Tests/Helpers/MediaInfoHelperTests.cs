@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.IO;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,6 +14,7 @@ using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.MediaEncoding;
+using MediaBrowser.Model.Dlna;
 using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.MediaInfo;
 using Microsoft.AspNetCore.Http;
@@ -25,6 +27,32 @@ namespace Jellyfin.Api.Tests.Helpers
     public class MediaInfoHelperTests
     {
         private const string LiveStreamFilesPath = "/LiveTv/LiveStreamFiles/abc/stream.ts";
+
+        [Fact]
+        public async Task GetPlaybackInfo_MissingLocalSource_ReturnsSourceNotFound()
+        {
+            var manager = new Mock<IMediaSourceManager>();
+            manager.Setup(x => x.GetPlaybackMediaSources(It.IsAny<BaseItem>(), It.IsAny<User>(), true, true, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new[] { new MediaSourceInfo { Id = "missing", Protocol = MediaProtocol.File, Path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")) } });
+            var result = await CreateHelper(manager.Object).GetPlaybackInfo(new Movie(), null, Mock.Of<HttpRequest>()).ConfigureAwait(true);
+            Assert.Empty(result.MediaSources);
+            Assert.Equal(PlaybackErrorCode.SourceNotFound, result.ErrorCode);
+        }
+
+        [Fact]
+        public async Task GetPlaybackInfo_MissingLocalSource_KeepsRemoteAlternative()
+        {
+            var manager = new Mock<IMediaSourceManager>();
+            manager.Setup(x => x.GetPlaybackMediaSources(It.IsAny<BaseItem>(), It.IsAny<User>(), true, true, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new[]
+                {
+                    new MediaSourceInfo { Id = "missing", Protocol = MediaProtocol.File, Path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")) },
+                    new MediaSourceInfo { Id = "remote", Protocol = MediaProtocol.Http, Path = "https://example.invalid/media" }
+                });
+            var result = await CreateHelper(manager.Object).GetPlaybackInfo(new Movie(), null, Mock.Of<HttpRequest>()).ConfigureAwait(true);
+            Assert.Equal("remote", Assert.Single(result.MediaSources).Id);
+            Assert.Null(result.ErrorCode);
+        }
 
         private static MediaInfoHelper CreateHelper(
             IMediaSourceManager? mediaSourceManager = null,
