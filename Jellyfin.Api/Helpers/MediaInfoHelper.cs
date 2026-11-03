@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Security.Claims;
@@ -100,6 +101,20 @@ public class MediaInfoHelper
         var result = new PlaybackInfoResponse();
 
         var mediaSources = await ResolvePlaybackMediaSources(item, user, mediaSourceId, liveStreamId).ConfigureAwait(false);
+
+        // Cached library metadata does not establish that a local source is still available.
+        // Keep alternate sources and sources that must be opened by a live-stream provider.
+        var availableSources = mediaSources.Where(source => source.Protocol != MediaProtocol.File
+            || source.RequiresOpening
+            || Path.Exists(source.Path)).ToArray();
+        if (mediaSources.Length > 0 && availableSources.Length == 0)
+        {
+            result.MediaSources = Array.Empty<MediaSourceInfo>();
+            result.ErrorCode = PlaybackErrorCode.SourceNotFound;
+            return result;
+        }
+
+        mediaSources = availableSources;
 
         if (mediaSources.Length == 0)
         {
