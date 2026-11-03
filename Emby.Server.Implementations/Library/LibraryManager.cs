@@ -277,7 +277,8 @@ namespace Emby.Server.Implementations.Library
             return !string.IsNullOrEmpty(path)
                 && !string.IsNullOrEmpty(libraryRoot)
                 && _fileSystem.ContainsSubPath(libraryRoot, path)
-                && IsLibraryRootAvailable(libraryRoot);
+                && IsLibraryRootAvailable(libraryRoot)
+                && MissingFileRemovalGuard.CanRemove(path, libraryRoot);
         }
 
         /// <inheritdoc />
